@@ -31,6 +31,22 @@ docker compose up -d --build
 
 Сервис будет доступен на `http://localhost:3100`. Health check: `GET /health`.
 
+### Деплой на удалённый сервер
+
+1. Создайте репозиторий на GitHub/GitLab и добавьте remote:
+   ```bash
+   git remote add origin git@github.com:USER/proxy-connector.git
+   git push -u origin main
+   ```
+
+2. На сервере:
+   ```bash
+   git clone git@github.com:USER/proxy-connector.git
+   cd proxy-connector
+   echo "API_KEY=ваш-секретный-ключ" > .env
+   docker compose up -d --build
+   ```
+
 ## API
 
 Базовый URL: `{CONNECTOR_URL}/v1`  
