@@ -54,6 +54,8 @@ docker compose up -d --build
 Базовый URL: `{CONNECTOR_URL}/v1`  
 Аутентификация: `Authorization: Bearer {API_KEY}` или `X-API-Key: {API_KEY}`
 
+**WireGuard:** полное описание — `docs/connector-api.md`.
+
 ### POST /v1/configs/create
 
 Создание конфига. proxy-buyer передаёт `server` в теле запроса (Вариант B из ТЗ).
@@ -97,7 +99,7 @@ docker compose up -d --build
 
 ### POST /v1/configs/extend
 
-Продление (если протокол поддерживает). WireGuard через wg-easy не поддерживает extend.
+Продление (если протокол поддерживает). WireGuard поддерживает — см. `docs/connector-api.md`.
 
 ## Squid
 
