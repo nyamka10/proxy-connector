@@ -104,3 +104,28 @@ docker compose up -d --build
 - `DELETE /users/:id` — удалить
 
 См. ТЗ `proxy-buyer/docs/CONNECTOR_TZ.md`.
+
+## Отладка WireGuard (wg-easy)
+
+Тест создания WireGuard-клиента (wg-easy уже развёрнут, например wg-ger.nymk.ru):
+
+```bash
+curl -X POST http://localhost:3100/v1/configs/create \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: ваш-API-KEY" \
+  -d '{
+    "server": {
+      "id": "wg1",
+      "baseUrl": "https://wg-ger.nymk.ru",
+      "username": "admin",
+      "password": "пароль_от_wg_easy",
+      "protocol": "wireguard"
+    },
+    "protocol": "wireguard",
+    "userId": "test-user",
+    "configId": "test-cfg-001",
+    "expiresAt": "2026-12-31T00:00:00.000Z"
+  }'
+```
+
+Если wg-easy на HTTPS без порта в URL — порт 51821 добавляется автоматически. Иначе укажи `"port": 51821` в server.

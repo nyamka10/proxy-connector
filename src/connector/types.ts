@@ -5,6 +5,8 @@ export interface ServerConfig {
   baseUrl: string;
   apiKey?: string;
   password?: string;
+  /** wg-easy: username (default "admin") */
+  username?: string;
   port?: number;
   protocol: Protocol;
 }

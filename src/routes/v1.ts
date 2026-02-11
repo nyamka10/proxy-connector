@@ -20,6 +20,7 @@ function parseServer(body: unknown): ServerConfig | null {
     baseUrl,
     apiKey: typeof server.apiKey === 'string' ? server.apiKey : undefined,
     password: typeof server.password === 'string' ? server.password : undefined,
+    username: typeof server.username === 'string' ? server.username : undefined,
     port: typeof server.port === 'number' ? server.port : undefined,
     protocol,
   };

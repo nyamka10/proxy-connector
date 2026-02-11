@@ -6,22 +6,9 @@ import type {
 } from '../types.js';
 import { BaseAdapter } from './base.js';
 
+/** wg-easy v15 API: /api/client, Basic Auth or session */
 export class WgEasyAdapter extends BaseAdapter {
   readonly protocol = 'wireguard' as const;
-
-  private async initSession(baseUrl: string, password: string): Promise<string> {
-    const url = new URL('/api/session', baseUrl);
-    const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    if (!res.ok) {
-      throw new Error(`Session init failed: ${res.status}`);
-    }
-    const cookie = res.headers.get('set-cookie');
-    return cookie ?? '';
-  }
 
   private getBaseUrl(server: CreateParams['server']): string {
     const base = server.baseUrl.replace(/\/$/, '');
@@ -29,21 +16,64 @@ export class WgEasyAdapter extends BaseAdapter {
     return base.includes(':') ? base : `${base}:${port}`;
   }
 
+  private getAuthHeaders(server: CreateParams['server']): Record<string, string> {
+    const username = server.username ?? 'admin';
+    const password = server.password ?? server.apiKey ?? '';
+    const basic = Buffer.from(`${username}:${password}`, 'utf-8').toString('base64');
+    return { Authorization: `Basic ${basic}` };
+  }
+
+  private async initSession(baseUrl: string, server: CreateParams['server']): Promise<string> {
+    const username = server.username ?? 'admin';
+    const password = server.password ?? server.apiKey ?? '';
+    const url = new URL('/api/session', baseUrl);
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, remember: false }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Session failed ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const cookie = res.headers.get('set-cookie');
+    return cookie?.split(';')[0] ?? '';
+  }
+
+  private async fetchWithAuth(
+    url: string,
+    server: CreateParams['server'],
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const authHeaders = this.getAuthHeaders(server);
+    const headers = { ...authHeaders, ...options.headers } as Record<string, string>;
+    return fetch(url, { ...options, headers });
+  }
+
   async create(params: CreateParams): Promise<CreateResult> {
     const { server, configId, userId } = params;
     const baseUrl = this.getBaseUrl(server);
-    const password = server.password ?? server.apiKey ?? '';
+    const name = `${userId}_${configId}`.slice(0, 64);
+    const expiresAt = params.expiresAt;
 
     try {
-      const cookie = await this.initSession(baseUrl, password);
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (cookie) headers['Cookie'] = cookie.split(';')[0];
+      let cookie = '';
+      try {
+        cookie = await this.initSession(baseUrl, server);
+      } catch {
+        // Session may fail if 2FA enabled; try Basic Auth directly
+      }
 
-      const name = `${userId}_${configId}`.slice(0, 64);
-      const createRes = await fetch(`${baseUrl}/api/wireguard/client`, {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(server),
+      };
+      if (cookie) headers['Cookie'] = cookie;
+
+      const createRes = await fetch(`${baseUrl}/api/client`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, expiresAt }),
       });
 
       if (!createRes.ok) {
@@ -55,21 +85,20 @@ export class WgEasyAdapter extends BaseAdapter {
         };
       }
 
-      const createData = (await createRes.json()) as { id?: string };
-      const clientId = createData?.id;
+      const createData = (await createRes.json()) as { success?: boolean; clientId?: string };
+      const clientId = createData?.clientId;
 
       if (!clientId) {
         return {
           success: false,
           error: 'WG_EASY_NO_CLIENT_ID',
-          message: 'No client ID in response',
+          message: 'No clientId in response',
         };
       }
 
-      const configRes = await fetch(
-        `${baseUrl}/api/wireguard/client/${clientId}/configuration`,
-        { headers }
-      );
+      const configRes = await fetch(`${baseUrl}/api/client/${clientId}/configuration`, {
+        headers,
+      });
 
       if (!configRes.ok) {
         return {
@@ -98,14 +127,10 @@ export class WgEasyAdapter extends BaseAdapter {
   async revoke(params: RevokeParams): Promise<RevokeResult> {
     const { server, externalId } = params;
     const baseUrl = this.getBaseUrl(server);
-    const password = server.password ?? server.apiKey ?? '';
+    const headers = this.getAuthHeaders(server);
 
     try {
-      const cookie = await this.initSession(baseUrl, password);
-      const headers: Record<string, string> = {};
-      if (cookie) headers['Cookie'] = cookie.split(';')[0];
-
-      const res = await fetch(`${baseUrl}/api/wireguard/client/${externalId}`, {
+      const res = await fetch(`${baseUrl}/api/client/${externalId}`, {
         method: 'DELETE',
         headers,
       });
