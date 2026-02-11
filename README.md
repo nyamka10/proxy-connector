@@ -29,7 +29,7 @@ echo "API_KEY=your-secret-key" > .env
 docker compose up -d --build
 ```
 
-Сервис будет доступен на `http://localhost:3100`. Health check: `GET /health`.
+Сервис будет доступен на `http://localhost:3100`. Health check: `GET /health` — вернёт `version` (проверь, что она 1.0.1+).
 
 ### Деплой на удалённый сервер
 
@@ -41,11 +41,13 @@ docker compose up -d --build
 
 2. На сервере:
    ```bash
-   git clone git@github.com:USER/proxy-connector.git
+   git clone https://github.com/USER/proxy-connector.git
    cd proxy-connector
    echo "API_KEY=ваш-секретный-ключ" > .env
    docker compose up -d --build
    ```
+
+   Если `git pull` не работает (Permission denied): используй HTTPS + Personal Access Token вместо SSH.
 
 ## API
 
@@ -107,7 +109,14 @@ docker compose up -d --build
 
 ## Отладка WireGuard (wg-easy)
 
-Тест создания WireGuard-клиента (wg-easy уже развёрнут, например wg-ger.nymk.ru):
+Проверка wg-easy напрямую (Basic Auth):
+```bash
+curl -u admin:ПАРОЛЬ -X POST https://wg-ger.nymk.ru/api/client \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test","expiresAt":"2026-12-31T00:00:00.000Z"}'
+```
+
+Через proxy-connector:
 
 ```bash
 curl -X POST http://localhost:3100/v1/configs/create \

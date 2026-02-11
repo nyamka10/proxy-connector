@@ -45,10 +45,11 @@ export class WgEasyAdapter extends BaseAdapter {
       if (!createRes.ok) {
         const err = await createRes.text();
         console.error('[WgEasy] create failed', createRes.status, err?.slice(0, 300));
+        const hint = createRes.status === 401 ? ' (проверь username/password)' : '';
         return {
           success: false,
           error: 'WG_EASY_CREATE_FAILED',
-          message: err || `HTTP ${createRes.status}`,
+          message: `${createRes.status}${hint}: ${(err || '').slice(0, 200)}`,
         };
       }
 
@@ -83,11 +84,12 @@ export class WgEasyAdapter extends BaseAdapter {
         externalId: clientId,
       };
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.error('[WgEasy] create error', err);
       return {
         success: false,
         error: 'WG_EASY_ERROR',
-        message: err instanceof Error ? err.message : String(err),
+        message: msg,
       };
     }
   }
