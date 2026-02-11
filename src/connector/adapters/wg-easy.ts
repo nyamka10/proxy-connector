@@ -6,7 +6,7 @@ import type {
 } from '../types.js';
 import { BaseAdapter } from './base.js';
 
-/** wg-easy v15 API: /api/client, Basic Auth or session */
+/** wg-easy v15 API: /api/client, Basic Auth (username:password) */
 export class WgEasyAdapter extends BaseAdapter {
   readonly protocol = 'wireguard' as const;
 
@@ -23,33 +23,6 @@ export class WgEasyAdapter extends BaseAdapter {
     return { Authorization: `Basic ${basic}` };
   }
 
-  private async initSession(baseUrl: string, server: CreateParams['server']): Promise<string> {
-    const username = server.username ?? 'admin';
-    const password = server.password ?? server.apiKey ?? '';
-    const url = new URL('/api/session', baseUrl);
-    const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, remember: false }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Session failed ${res.status}: ${text.slice(0, 200)}`);
-    }
-    const cookie = res.headers.get('set-cookie');
-    return cookie?.split(';')[0] ?? '';
-  }
-
-  private async fetchWithAuth(
-    url: string,
-    server: CreateParams['server'],
-    options: RequestInit = {}
-  ): Promise<Response> {
-    const authHeaders = this.getAuthHeaders(server);
-    const headers = { ...authHeaders, ...options.headers } as Record<string, string>;
-    return fetch(url, { ...options, headers });
-  }
-
   async create(params: CreateParams): Promise<CreateResult> {
     const { server, configId, userId } = params;
     const baseUrl = this.getBaseUrl(server);
@@ -57,19 +30,12 @@ export class WgEasyAdapter extends BaseAdapter {
     const expiresAt = params.expiresAt;
 
     try {
-      let cookie = '';
-      try {
-        cookie = await this.initSession(baseUrl, server);
-      } catch {
-        // Session may fail if 2FA enabled; try Basic Auth directly
-      }
-
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...this.getAuthHeaders(server),
       };
-      if (cookie) headers['Cookie'] = cookie;
 
+      console.log('[WgEasy] create client', { baseUrl, name });
       const createRes = await fetch(`${baseUrl}/api/client`, {
         method: 'POST',
         headers,
@@ -78,6 +44,7 @@ export class WgEasyAdapter extends BaseAdapter {
 
       if (!createRes.ok) {
         const err = await createRes.text();
+        console.error('[WgEasy] create failed', createRes.status, err?.slice(0, 300));
         return {
           success: false,
           error: 'WG_EASY_CREATE_FAILED',
@@ -116,6 +83,7 @@ export class WgEasyAdapter extends BaseAdapter {
         externalId: clientId,
       };
     } catch (err) {
+      console.error('[WgEasy] create error', err);
       return {
         success: false,
         error: 'WG_EASY_ERROR',

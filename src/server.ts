@@ -7,6 +7,10 @@ const API_KEY = process.env.API_KEY ?? '';
 
 const app = express();
 app.use(express.json());
+app.use((req, _res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, version: '1.0.0' });
