@@ -9,5 +9,10 @@ services:
       SERVERS_FILE: /app/servers.json
     volumes:
       - ./servers.json:/app/servers.json:ro
-    # Перед первым запуском: cp servers.example.json servers.json
     restart: unless-stopped
+    networks:
+      - npm
+
+networks:
+  npm:
+    external: true
