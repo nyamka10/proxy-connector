@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import type { ServerConfig } from '../connector/types.js';
 import { createConfig, revokeConfig, extendConfig } from '../connector/connector.js';
+import { getServer } from '../config/servers.js';
 
 const router = Router();
 
@@ -26,9 +27,19 @@ function parseServer(body: unknown): ServerConfig | null {
   };
 }
 
+function resolveServer(body: unknown): ServerConfig | null {
+  const o = body as Record<string, unknown>;
+  const serverId = o.serverId as string | undefined;
+  if (typeof serverId === 'string') {
+    const stored = getServer(serverId);
+    if (stored) return stored;
+  }
+  return parseServer(body);
+}
+
 router.post('/configs/create', async (req: Request, res: Response) => {
   const body = req.body as Record<string, unknown>;
-  const server = parseServer(body);
+  const server = resolveServer(body);
   const protocol = body.protocol;
   const userId = body.userId;
   const configId = body.configId;
@@ -39,7 +50,7 @@ router.post('/configs/create', async (req: Request, res: Response) => {
     res.status(400).json({
       success: false,
       error: 'INVALID_REQUEST',
-      message: 'Missing or invalid "server" (baseUrl, protocol required)',
+      message: 'Missing or invalid "server" or "serverId" (serverId: id из servers.json, либо server: {baseUrl, protocol, ...})',
     });
     return;
   }
@@ -84,7 +95,7 @@ router.post('/configs/create', async (req: Request, res: Response) => {
 
 router.post('/configs/revoke', async (req: Request, res: Response) => {
   const body = req.body as Record<string, unknown>;
-  const server = parseServer(body);
+  const server = resolveServer(body);
   const protocol = body.protocol;
   const externalId = body.externalId;
   const configId = body.configId;
@@ -93,7 +104,7 @@ router.post('/configs/revoke', async (req: Request, res: Response) => {
     res.status(400).json({
       success: false,
       error: 'INVALID_REQUEST',
-      message: 'Missing or invalid "server"',
+      message: 'Missing or invalid "server" or "serverId"',
     });
     return;
   }
@@ -130,7 +141,7 @@ router.post('/configs/revoke', async (req: Request, res: Response) => {
 
 router.post('/configs/extend', async (req: Request, res: Response) => {
   const body = req.body as Record<string, unknown>;
-  const server = parseServer(body);
+  const server = resolveServer(body);
   const protocol = body.protocol;
   const externalId = body.externalId;
   const configId = body.configId;
@@ -140,7 +151,7 @@ router.post('/configs/extend', async (req: Request, res: Response) => {
     res.status(400).json({
       success: false,
       error: 'INVALID_REQUEST',
-      message: 'Missing or invalid "server"',
+      message: 'Missing or invalid "server" or "serverId"',
     });
     return;
   }

@@ -16,20 +16,38 @@
 ```bash
 npm install
 cp .env.example .env
-# Отредактируйте .env (API_KEY обязателен)
+cp servers.example.json servers.json
+# Отредактируйте .env (API_KEY) и servers.json (baseUrl, password для wg-easy)
 npm run dev
 ```
 
 ### Docker
 
 ```bash
-# Создайте .env с API_KEY
-echo "API_KEY=your-secret-key" > .env
+cp .env.example .env
+cp servers.example.json servers.json
+# Отредактируйте servers.json — логин/пароль wg-easy хранятся здесь
+echo "API_KEY=your-secret-key" >> .env
 
 docker compose up -d --build
 ```
 
-Сервис будет доступен на `http://localhost:3100`. Health check: `GET /health` — вернёт `version` (проверь, что она 1.0.1+).
+Сервис будет доступен на `http://localhost:3100`. Health check: `GET /health`.
+
+### servers.json
+
+Логин и пароль wg-easy хранятся в коннекторе. proxy-buyer передаёт только `serverId` — credentials подставляются из `servers.json`:
+
+```json
+{
+  "wg-de-1": {
+    "baseUrl": "https://wg-ger.nymk.ru",
+    "username": "admin",
+    "password": "пароль_от_wg_easy",
+    "protocol": "wireguard"
+  }
+}
+```
 
 ### Деплой на удалённый сервер
 
@@ -58,24 +76,20 @@ docker compose up -d --build
 
 ### POST /v1/configs/create
 
-Создание конфига. proxy-buyer передаёт `server` в теле запроса (Вариант B из ТЗ).
+Создание конфига. Рекомендуется передавать `serverId` — credentials из `servers.json`.
 
-**WireGuard (wg-easy):**
+**WireGuard (через serverId):**
 ```json
 {
-  "server": {
-    "id": "srv-1",
-    "baseUrl": "https://wg.example.com",
-    "password": "admin_password",
-    "port": 51821,
-    "protocol": "wireguard"
-  },
+  "serverId": "wg-de-1",
   "protocol": "wireguard",
   "userId": "clxxx",
   "configId": "cfg_xxx",
-  "expiresAt": "2025-03-10T00:00:00.000Z"
+  "expiresAt": "2026-12-31T23:59:59.000Z"
 }
 ```
+
+Можно передать полный объект `server` (baseUrl, username, password) — для обратной совместимости.
 
 **HTTP (Squid):**
 ```json

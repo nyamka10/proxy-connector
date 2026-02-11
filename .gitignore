@@ -3,5 +3,6 @@ dist
 .env
 .env.*
 !.env.example
+servers.json
 *.log
 .DS_Store

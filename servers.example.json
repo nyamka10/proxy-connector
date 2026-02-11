@@ -1,0 +1,13 @@
+{
+  "wg-de-1": {
+    "baseUrl": "https://wg-ger.nymk.ru",
+    "username": "admin",
+    "password": "your_wg_easy_password",
+    "protocol": "wireguard"
+  },
+  "squid-de-1": {
+    "baseUrl": "https://squid-api.example.com",
+    "apiKey": "squid_api_key",
+    "protocol": "http"
+  }
+}

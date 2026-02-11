@@ -11,13 +11,55 @@
 
 ---
 
+## Конфигурация серверов (servers.json)
+
+Логин и пароль wg-easy хранятся в коннекторе. Создай `servers.json` (скопируй из `servers.example.json`):
+
+```json
+{
+  "wg-de-1": {
+    "baseUrl": "https://wg-ger.nymk.ru",
+    "username": "admin",
+    "password": "пароль_от_wg_easy",
+    "protocol": "wireguard"
+  }
+}
+```
+
+proxy-buyer передаёт только `serverId` — коннектор подставляет credentials из файла.
+
+---
+
 ## 1. Создание конфигурации
 
 **POST** `/v1/configs/create`
 
 Создаёт нового WireGuard-клиента в wg-easy и возвращает конфигурацию.
 
-### Request
+### Request (рекомендуемый — через serverId)
+
+```json
+{
+  "serverId": "wg-de-1",
+  "protocol": "wireguard",
+  "userId": "clxxx",
+  "configId": "cfg_xxx",
+  "expiresAt": "2026-12-31T23:59:59.000Z",
+  "meta": {}
+}
+```
+
+| Поле | Обязательно | Описание |
+|------|-------------|----------|
+| `serverId` | да* | ID сервера из servers.json |
+| `protocol` | да | `"wireguard"` |
+| `userId` | да | ID пользователя (для названия клиента) |
+| `configId` | да | ID конфигурации (для названия клиента) |
+| `expiresAt` | да | Дата истечения, формат ISO 8601 |
+
+*Вместо `serverId` можно передать полный объект `server` (см. ниже).
+
+### Request (альтернатива — полный server)
 
 ```json
 {
@@ -31,22 +73,9 @@
   "protocol": "wireguard",
   "userId": "clxxx",
   "configId": "cfg_xxx",
-  "expiresAt": "2026-12-31T23:59:59.000Z",
-  "meta": {}
+  "expiresAt": "2026-12-31T23:59:59.000Z"
 }
 ```
-
-| Поле | Обязательно | Описание |
-|------|-------------|----------|
-| `server.id` | да | Идентификатор сервера |
-| `server.baseUrl` | да | URL wg-easy (например `https://wg-ger.nymk.ru`) |
-| `server.username` | нет | Логин wg-easy (по умолчанию `admin`) |
-| `server.password` | да | Пароль wg-easy |
-| `server.port` | нет | Порт (по умолчанию 51821, для HTTPS не нужен) |
-| `protocol` | да | `"wireguard"` |
-| `userId` | да | ID пользователя (для названия клиента) |
-| `configId` | да | ID конфигурации (для названия клиента) |
-| `expiresAt` | да | Дата истечения, формат ISO 8601 |
 
 ### Response (успех)
 
@@ -83,13 +112,7 @@
 
 ```json
 {
-  "server": {
-    "id": "srv-de-wg",
-    "baseUrl": "https://wg-ger.nymk.ru",
-    "username": "admin",
-    "password": "пароль_от_wg_easy",
-    "protocol": "wireguard"
-  },
+  "serverId": "wg-de-1",
   "protocol": "wireguard",
   "externalId": "35",
   "configId": "cfg_xxx"
@@ -118,13 +141,7 @@
 
 ```json
 {
-  "server": {
-    "id": "srv-de-wg",
-    "baseUrl": "https://wg-ger.nymk.ru",
-    "username": "admin",
-    "password": "пароль_от_wg_easy",
-    "protocol": "wireguard"
-  },
+  "serverId": "wg-de-1",
   "protocol": "wireguard",
   "externalId": "35",
   "configId": "cfg_xxx",
@@ -144,17 +161,17 @@
 
 ### Новый заказ WireGuard
 
-1. Получить из БД сервер (baseUrl, username, password).
-2. `POST /v1/configs/create` с `server`, `userId`, `configId`, `expiresAt`.
+1. В БД сервера хранится только `serverId` (например `wg-de-1`), credentials — в коннекторе.
+2. `POST /v1/configs/create` с `serverId`, `userId`, `configId`, `expiresAt`.
 3. Сохранить `credentials.wireguard.conf` и `externalId` в ConfigSecret.
 
 ### Отмена / непродление
 
-1. `POST /v1/configs/revoke` с `server`, `externalId`, `configId`.
+1. `POST /v1/configs/revoke` с `serverId`, `externalId`, `configId`.
 
 ### Продление
 
-1. `POST /v1/configs/extend` с `server`, `externalId`, `configId`, новой `expiresAt`.
+1. `POST /v1/configs/extend` с `serverId`, `externalId`, `configId`, новой `expiresAt`.
 
 ---
 
