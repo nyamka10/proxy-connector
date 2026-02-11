@@ -6,7 +6,7 @@ import type {
 } from '../types.js';
 import { BaseAdapter } from './base.js';
 
-/** wg-easy v15 API: /api/client, Basic Auth (username:password) */
+/** wg-easy v15: session cookie, затем /api/client */
 export class WgEasyAdapter extends BaseAdapter {
   readonly protocol = 'wireguard' as const;
 
@@ -16,11 +16,28 @@ export class WgEasyAdapter extends BaseAdapter {
     return base.includes(':') ? base : `${base}:${port}`;
   }
 
-  private getAuthHeaders(server: CreateParams['server']): Record<string, string> {
+  private async getSessionCookie(server: CreateParams['server']): Promise<string> {
+    const baseUrl = this.getBaseUrl(server);
     const username = server.username ?? 'admin';
     const password = server.password ?? server.apiKey ?? '';
-    const basic = Buffer.from(`${username}:${password}`, 'utf-8').toString('base64');
-    return { Authorization: `Basic ${basic}` };
+
+    const res = await fetch(`${baseUrl}/api/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password, remember: false }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Session ${res.status}: ${text.slice(0, 150)}`);
+    }
+
+    const setCookie = res.headers.get('set-cookie');
+    const cookie = setCookie?.split(';')[0] ?? '';
+    if (!cookie) {
+      throw new Error('No session cookie in response');
+    }
+    return cookie;
   }
 
   async create(params: CreateParams): Promise<CreateResult> {
@@ -30,9 +47,10 @@ export class WgEasyAdapter extends BaseAdapter {
     const expiresAt = params.expiresAt;
 
     try {
+      const cookie = await this.getSessionCookie(server);
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...this.getAuthHeaders(server),
+        Cookie: cookie,
       };
 
       console.log('[WgEasy] create client', { baseUrl, name });
@@ -45,11 +63,10 @@ export class WgEasyAdapter extends BaseAdapter {
       if (!createRes.ok) {
         const err = await createRes.text();
         console.error('[WgEasy] create failed', createRes.status, err?.slice(0, 300));
-        const hint = createRes.status === 401 ? ' (проверь username/password)' : '';
         return {
           success: false,
           error: 'WG_EASY_CREATE_FAILED',
-          message: `${createRes.status}${hint}: ${(err || '').slice(0, 200)}`,
+          message: `${createRes.status}: ${(err || '').slice(0, 200)}`,
         };
       }
 
@@ -97,9 +114,11 @@ export class WgEasyAdapter extends BaseAdapter {
   async revoke(params: RevokeParams): Promise<RevokeResult> {
     const { server, externalId } = params;
     const baseUrl = this.getBaseUrl(server);
-    const headers = this.getAuthHeaders(server);
 
     try {
+      const cookie = await this.getSessionCookie(server);
+      const headers = { Cookie: cookie };
+
       const res = await fetch(`${baseUrl}/api/client/${externalId}`, {
         method: 'DELETE',
         headers,

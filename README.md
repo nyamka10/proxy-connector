@@ -109,12 +109,16 @@ docker compose up -d --build
 
 ## Отладка WireGuard (wg-easy)
 
-Проверка wg-easy напрямую (Basic Auth):
+wg-easy v15 требует session: сначала POST /api/session, затем cookie для /api/client.
+
+Проверка session:
 ```bash
-curl -u admin:ПАРОЛЬ -X POST https://wg-ger.nymk.ru/api/client \
+curl -X POST https://wg-ger.nymk.ru/api/session \
   -H "Content-Type: application/json" \
-  -d '{"name":"test","expiresAt":"2026-12-31T00:00:00.000Z"}'
+  -d '{"username":"admin","password":"ПАРОЛЬ","remember":false}' \
+  -v
 ```
+Должен вернуть 200 и Set-Cookie.
 
 Через proxy-connector:
 

@@ -12,7 +12,7 @@ app.use((req, _res, next) => {
   next();
 });
 
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 app.get('/health', (_req, res) => {
   res.json({ ok: true, version: VERSION });
 });
