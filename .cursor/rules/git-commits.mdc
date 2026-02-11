@@ -1,0 +1,12 @@
+---
+description: Git commit rules - no Co-authored-by
+alwaysApply: true
+---
+
+# Git Commits
+
+- **Never** add `Co-authored-by: Cursor <cursoragent@cursor.com>` to commit messages.
+- When committing: use `GIT_EDITOR` to avoid editor injection, e.g.:
+  `echo "message" > /tmp/msg.txt && GIT_EDITOR="cp /tmp/msg.txt" git commit -F /tmp/msg.txt`
+  or for amend: `GIT_EDITOR="cp /tmp/msg.txt" git commit --amend`
+- Push after each global change.
