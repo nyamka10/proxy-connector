@@ -120,6 +120,8 @@ curl -X POST https://wg-ger.nymk.ru/api/session \
 ```
 Должен вернуть 200 и Set-Cookie.
 
+API wg-easy: см. `Ручки для wgeasy.md`.
+
 Через proxy-connector:
 
 ```bash

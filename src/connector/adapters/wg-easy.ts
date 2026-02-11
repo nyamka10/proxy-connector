@@ -1,6 +1,8 @@
 import type {
   CreateParams,
   CreateResult,
+  ExtendParams,
+  ExtendResult,
   RevokeParams,
   RevokeResult,
 } from '../types.js';
@@ -129,6 +131,54 @@ export class WgEasyAdapter extends BaseAdapter {
           success: false,
           error: 'WG_EASY_REVOKE_FAILED',
           message: `HTTP ${res.status}`,
+        };
+      }
+
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'WG_EASY_ERROR',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  async extend(params: ExtendParams): Promise<ExtendResult> {
+    const { server, externalId, expiresAt } = params;
+    const baseUrl = this.getBaseUrl(server);
+
+    try {
+      const cookie = await this.getSessionCookie(server);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Cookie: cookie,
+      };
+
+      const getRes = await fetch(`${baseUrl}/api/client/${externalId}`, { headers });
+      if (!getRes.ok) {
+        return {
+          success: false,
+          error: 'WG_EASY_EXTEND_FAILED',
+          message: `GET client: ${getRes.status}`,
+        };
+      }
+
+      const client = (await getRes.json()) as Record<string, unknown>;
+      client.expiresAt = expiresAt;
+
+      const putRes = await fetch(`${baseUrl}/api/client/${externalId}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(client),
+      });
+
+      if (!putRes.ok) {
+        const err = await putRes.text();
+        return {
+          success: false,
+          error: 'WG_EASY_EXTEND_FAILED',
+          message: err || `HTTP ${putRes.status}`,
         };
       }
 
